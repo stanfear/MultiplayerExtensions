@@ -6,14 +6,15 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
+using MultiplayerExtensions.Utilities;
 
 namespace MultiplayerExtensions.Beatmaps
 {
     class PreviewBeatmapStub : IPreviewBeatmapLevel
     {
-        public string levelHash { get; private set; }
-        public string levelKey { get; private set; }
-        public string downloadURL => $"https://beatsaver.com/api/download/hash/{levelHash.ToLower()}";
+        public string? levelHash { get; private set; }
+        public string? levelKey { get; private set; }
         public Beatmap? beatmap;
 
         private Func<CancellationToken, Task<Sprite?>> _coverGetter;
@@ -56,18 +57,42 @@ namespace MultiplayerExtensions.Beatmaps
             this.levelHash = Utilities.Utils.LevelIdToHash(levelID)!;
             this.isDownloaded = true;
 
-            IPreviewBeatmapLevel preview = SongCore.Loader.GetLevelById(levelID);
-            this.songName = preview.songName;
-            this.songSubName = preview.songSubName;
-            this.songAuthorName = preview.songAuthorName;
-            this.levelAuthorName = preview.levelAuthorName;
+            IPreviewBeatmapLevel? preview = SongCore.Loader.GetLevelById(levelID);
+            if (preview != null)
+            {
+                this.songName = preview.songName;
+                this.songSubName = preview.songSubName;
+                this.songAuthorName = preview.songAuthorName;
+                this.levelAuthorName = preview.levelAuthorName;
 
-            this.beatsPerMinute = preview.beatsPerMinute;
-            this.songDuration = preview.songDuration;
+                this.beatsPerMinute = preview.beatsPerMinute;
+                this.songDuration = preview.songDuration;
 
-            _coverGetter = (CancellationToken cancellationToken) => preview.GetCoverImageAsync(cancellationToken);
-            _audioGetter = (CancellationToken cancellationToken) => preview.GetPreviewAudioClipAsync(cancellationToken);
-            _rawCoverGetter = async (CancellationToken cancellationToken) => Utilities.Sprites.GetRaw(await GetCoverImageAsync(cancellationToken));
+                _coverGetter = (CancellationToken cancellationToken) => preview.GetCoverImageAsync(cancellationToken);
+                _audioGetter = (CancellationToken cancellationToken) => preview.GetPreviewAudioClipAsync(cancellationToken);
+                _rawCoverGetter = async (CancellationToken cancellationToken) => Utilities.Sprites.GetRaw(await GetCoverImageAsync(cancellationToken));
+            }
+        }
+
+        public void PopulateFromJson(JObject jObject)
+        {
+            this.levelKey = jObject["key"]?.Value<string>();
+            JObject? meta = jObject["metadata"] as JObject;
+            if(meta != null)
+            {
+                this.songName = jObject["songName"]?.Value<string>();
+    
+                this.songSubName = jObject["songName"]?.Value<string>();
+                this.songAuthorName = jObject["songSubName"]?.Value<string>();
+                this.levelAuthorName = jObject["levelAuthorName"]?.Value<string>();
+                this.beatsPerMinute = jObject["bpm"]?.Value<float>() ?? 0;
+                this.songDuration = jObject["duration"]?.Value<float>() ?? 0;
+            }
+            string? coverUrl = jObject["coverURL"]?.Value<string>();
+            if(coverUrl != null)
+            {
+                _rawCoverGetter = async (CancellationToken cancellationToken) => await ;
+            }
         }
 
         public PreviewBeatmapStub(string levelID, Beatmap bm)
@@ -91,6 +116,14 @@ namespace MultiplayerExtensions.Beatmaps
 
             _rawCoverGetter = async (CancellationToken cancellationToken) => await bm.FetchCoverImage(cancellationToken);
             _coverGetter = async (CancellationToken cancellationToken) => Utilities.Sprites.GetSprite(await GetRawCoverAsync(cancellationToken));
+        }
+
+        private async Task<byte[]> GetRawCover(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await WebUtils.DownloadAsBytesAsync();
+            }
         }
 
         public PreviewBeatmapStub(PreviewBeatmapPacket packet)

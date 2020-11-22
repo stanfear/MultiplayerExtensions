@@ -12,6 +12,7 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using IPALogger = IPA.Logging.Logger;
+using System.Net.Http;
 
 namespace MultiplayerExtensions
 {
@@ -29,6 +30,7 @@ namespace MultiplayerExtensions
                 return _harmony ??= new Harmony(HarmonyId);
             }
         }
+
         /// <summary>
         /// Use to send log messages through BSIPA.
         /// </summary>
@@ -49,7 +51,11 @@ namespace MultiplayerExtensions
         [OnStart]
         public void OnApplicationStart()
         {
-            Plugin.Log?.Info($"MultiplayerExtensions: '{VersionInfo.Description}'");
+            string userAgent = $"MultiplayerExtensions/{PluginMetadata.Version} ({VersionInfo.Description})";
+            if (!WebUtils.HttpClient.DefaultRequestHeaders.UserAgent.TryParseAdd(userAgent))
+                Plugin.Log?.Warn($"Failed to set UserAgent '{userAgent}'");
+            else
+                Plugin.Log?.Info($"{userAgent}");
             HarmonyManager.ApplyDefaultPatches();
             Task versionTask = CheckVersion();
 
@@ -67,7 +73,7 @@ namespace MultiplayerExtensions
             {
                 GithubVersion latest = await VersionCheck.GetLatestVersionAsync("Zingabopp", "MultiplayerExtensions");
                 Log?.Debug($"Latest version is {latest}, released on {latest.ReleaseDate.ToShortDateString()}");
-                if(PluginMetadata != null)
+                if (PluginMetadata != null)
                 {
                     SemVer.Version currentVer = PluginMetadata.Version;
                     SemVer.Version latestVersion = new SemVer.Version(latest.ToString());
@@ -78,7 +84,7 @@ namespace MultiplayerExtensions
                     }
                 }
             }
-            catch(ReleaseNotFoundException ex)
+            catch (ReleaseNotFoundException ex)
             {
                 Log?.Warn(ex.Message);
             }
