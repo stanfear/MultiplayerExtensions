@@ -1,4 +1,5 @@
-﻿using MultiplayerExtensions.UI;
+﻿using MultiplayerExtensions.Fun;
+using MultiplayerExtensions.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,6 +32,11 @@ namespace MultiplayerExtensions.Installers
             CenterStageScreenController centerScreenController = Container.Resolve<CenterStageScreenController>();
             CenterScreenLoadingPanel loadingPanel = centerScreenController.gameObject.AddComponent<CenterScreenLoadingPanel>();
             Container.Inject(loadingPanel);
+
+            MultiplayerLobbyController lobbyController = Container.Resolve<MultiplayerLobbyController>();
+            GameObject snowball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            snowball.transform.SetParent(lobbyController.transform);
+            snowball.AddComponent<LocalSnowball>();
         }
     }
 }

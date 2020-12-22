@@ -15,10 +15,13 @@
 """AudioModule.dll?alias=Beat Saber_Data\Managed\UnityEngine.AudioModule.dll
 """CoreModule.dll?alias=Beat Saber_Data\Managed\UnityEngine.CoreModule.dll
 """ImageConversionModule.dll?alias=Beat Saber_Data\Managed\UnityEngine.ImageConversionModule.dll
+"""InputLegacyModule.dll?alias=Beat Saber_Data\Managed\UnityEngine.InputLegacyModule.dll
+"""PhysicsModule.dll?alias=Beat Saber_Data\Managed\UnityEngine.PhysicsModule.dll
 """UI.dll?alias=Beat Saber_Data\Managed\UnityEngine.UI.dll
 """UIElementsModule.dll?alias=Beat Saber_Data\Managed\UnityEngine.UIElementsModule.dll
 """UIModule.dll?alias=Beat Saber_Data\Managed\UnityEngine.UIModule.dll
 """VRModule.dll?alias=Beat Saber_Data\Managed\UnityEngine.VRModule.dll
+""VRUI.dll?alias=Beat Saber_Data\Managed\VRUI.dll
 ""Zenject.dll?alias=Beat Saber_Data\Managed\Zenject.dll
 ""Zenject-usage.dll?alias=Beat Saber_Data\Managed\Zenject-usage.dll
 
