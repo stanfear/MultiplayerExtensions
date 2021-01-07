@@ -1,4 +1,5 @@
-﻿using MultiplayerExtensions.Packets;
+﻿using MultiplayerExtensions.Beatmaps;
+using MultiplayerExtensions.Packets;
 using MultiplayerExtensions.Sessions;
 using MultiplayerExtensions.UI;
 using System;
@@ -22,6 +23,19 @@ namespace MultiplayerExtensions.OverrideClasses
         {
             _sessionManager.playerStateChangedEvent += OnPlayerStateChanged;
             base.Activate();
+        }
+
+        public override void HandleMenuRpcManagerStartedLevel(string userId, BeatmapIdentifierNetSerializable beatmapId, GameplayModifiers gameplayModifiers, float startTime)
+        {
+            BeatmapIdentifierNetSerializable bmId = beatmapId;
+            if (Plugin.Config.CustomMatchmake)
+            {
+                ILobbyPlayerDataModel playerData = _lobbyPlayersDataModel.playersData.Values.ToList().Find(x => x.beatmapLevel is QuickplayBeatmapStub qpPreview && qpPreview.spoofedLevelID == beatmapId.levelID);
+                if (playerData != null)
+                    bmId = new BeatmapIdentifierNetSerializable(playerData.beatmapLevel.levelID, beatmapId.beatmapCharacteristicSerializedName, beatmapId.difficulty);
+            }
+
+            base.HandleMenuRpcManagerStartedLevel(userId, beatmapId, gameplayModifiers, startTime);
         }
 
         public new void Deactivate()

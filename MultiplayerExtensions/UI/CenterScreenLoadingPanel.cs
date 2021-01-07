@@ -36,7 +36,7 @@ namespace MultiplayerExtensions.UI
 
         public void Update()
         {
-            if (screenController.countdownShown && sessionManager.syncTime >= gameStateController.startTime)
+            if (screenController.countdownShown && sessionManager.syncTime >= gameStateController.startTime && gameStateController.startTime > 0f)
             {
                 loadingDisplay.gameObject.SetActive(true);
             }

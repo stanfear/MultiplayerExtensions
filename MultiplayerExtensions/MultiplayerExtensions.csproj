@@ -38,6 +38,7 @@
     <None Remove="UI\CenterScreenLoading.bsml" />
     <None Remove="UI\ClientLobbySetupPanel.bsml" />
     <None Remove="UI\HostLobbySetupPanel.bsml" />
+    <None Remove="UI\MatchmakingPanel.bsml" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="BeatmapCore">
@@ -199,6 +200,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="UI\ClientLobbySetupPanel.bsml" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="UI\MatchmakingPanel.bsml" />
   </ItemGroup>
   <Target Name="PreBuild" BeforeTargets="BeforeBuild" Condition="'$(NCRUNCH)' != '1'">
     <Error Text="The BeatSaberModdingTools.Tasks nuget package doesn't seem to be installed." Condition="'$(BSMTTaskAssembly)' == ''" />

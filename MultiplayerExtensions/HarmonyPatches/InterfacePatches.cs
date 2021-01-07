@@ -10,6 +10,20 @@ using UnityEngine.UI;
 
 namespace MultiplayerExtensions.HarmonyPatches
 {
+    [HarmonyPatch(typeof(SongPackMasksModel), "GetSongPackMaskText", MethodType.Normal)]
+    public class CustomSongPackMaskName
+    {
+        static bool Prefix(ref string __result)
+        {
+            if (!LobbyJoinPatch.IsPrivate && Plugin.Config.CustomMatchmake)
+            {
+                __result = "Custom";
+                return false;
+            }
+            return true;
+        }
+    }
+
     [HarmonyPatch(typeof(GameServerPlayersTableView), "SetData", MethodType.Normal)]
     public class GameServerPlayerTablePatch
     {
@@ -20,54 +34,57 @@ namespace MultiplayerExtensions.HarmonyPatches
 
         static void Postfix(List<IConnectedPlayer> sortedPlayers, ILobbyPlayersDataModel lobbyPlayersDataModel, GameServerPlayersTableView __instance)
         {
-            IPreviewBeatmapLevel hostBeatmap = lobbyPlayersDataModel.GetPlayerBeatmapLevel(lobbyPlayersDataModel.hostUserId);
-            if (hostBeatmap != null && hostBeatmap is PreviewBeatmapStub hostBeatmapStub)
+            if (LobbyJoinPatch.IsPrivate)
             {
-                TableView tableView = __instance.GetField<TableView, GameServerPlayersTableView>("_tableView");
-                foreach (TableCell cell in tableView.visibleCells)
+                IPreviewBeatmapLevel hostBeatmap = lobbyPlayersDataModel.GetPlayerBeatmapLevel(lobbyPlayersDataModel.hostUserId);
+                if (hostBeatmap != null && hostBeatmap is PreviewBeatmapStub hostBeatmapStub)
                 {
-                    if (cell is GameServerPlayerTableCell playerCell)
+                    TableView tableView = __instance.GetField<TableView, GameServerPlayersTableView>("_tableView");
+                    foreach (TableCell cell in tableView.visibleCells)
                     {
-                        Image background = playerCell.GetField<Image, GameServerPlayerTableCell>("_localPlayerBackgroundImage");
-                        CurvedTextMeshPro emptySuggestion = playerCell.GetField<CurvedTextMeshPro, GameServerPlayerTableCell>("_emptySuggestedLevelText");
-                        CurvedTextMeshPro suggestion = playerCell.GetField<CurvedTextMeshPro, GameServerPlayerTableCell>("_suggestedLevelText");
-                        IConnectedPlayer player = sortedPlayers[playerCell.idx];
-                        Color backgroundColor = new Color();
+                        if (cell is GameServerPlayerTableCell playerCell)
+                        {
+                            Image background = playerCell.GetField<Image, GameServerPlayerTableCell>("_localPlayerBackgroundImage");
+                            CurvedTextMeshPro emptySuggestion = playerCell.GetField<CurvedTextMeshPro, GameServerPlayerTableCell>("_emptySuggestedLevelText");
+                            CurvedTextMeshPro suggestion = playerCell.GetField<CurvedTextMeshPro, GameServerPlayerTableCell>("_suggestedLevelText");
+                            IConnectedPlayer player = sortedPlayers[playerCell.idx];
+                            Color backgroundColor = new Color();
 
-                        if (player.isConnectionOwner)
-                        {
-                            suggestion.gameObject.SetActive(false);
-                            emptySuggestion.gameObject.SetActive(true);
-                            emptySuggestion.text = "Loading...";
-                            hostBeatmapStub.isDownloadable.ContinueWith(r =>
+                            if (player.isConnectionOwner)
                             {
-                                HMMainThreadDispatcher.instance.Enqueue(() =>
+                                suggestion.gameObject.SetActive(false);
+                                emptySuggestion.gameObject.SetActive(true);
+                                emptySuggestion.text = "Loading...";
+                                hostBeatmapStub.isDownloadable.ContinueWith(r =>
                                 {
-                                    suggestion.gameObject.SetActive(true);
-                                    emptySuggestion.gameObject.SetActive(false);
+                                    HMMainThreadDispatcher.instance.Enqueue(() =>
+                                    {
+                                        suggestion.gameObject.SetActive(true);
+                                        emptySuggestion.gameObject.SetActive(false);
+                                    });
                                 });
-                            });
-                        }
-                        // TODO: check merge
-                        background.enabled = true;
-                        if (player.HasState("beatmap_downloaded") || player.HasState("start_primed"))
-                        {
-                            backgroundColor = green;
-                            backgroundColor.a = player.isMe ? 0.4f : 0.1f;
-                            background.color = backgroundColor;
-                        }
-                        else
-                        {
-                            hostBeatmapStub.isDownloadable.ContinueWith(r =>
+                            }
+                            // TODO: check merge
+                            background.enabled = true;
+                            if (player.HasState("beatmap_downloaded") || player.HasState("start_primed"))
                             {
-                                bool downloadable = r.Result;
-                                backgroundColor = downloadable ? yellow : red;
+                                backgroundColor = green;
                                 backgroundColor.a = player.isMe ? 0.4f : 0.1f;
-                                HMMainThreadDispatcher.instance.Enqueue(() =>
+                                background.color = backgroundColor;
+                            }
+                            else
+                            {
+                                hostBeatmapStub.isDownloadable.ContinueWith(r =>
                                 {
-                                    background.color = backgroundColor;
+                                    bool downloadable = r.Result;
+                                    backgroundColor = downloadable ? yellow : red;
+                                    backgroundColor.a = player.isMe ? 0.4f : 0.1f;
+                                    HMMainThreadDispatcher.instance.Enqueue(() =>
+                                    {
+                                        background.color = backgroundColor;
+                                    });
                                 });
-                            });
+                            }
                         }
                     }
                 }

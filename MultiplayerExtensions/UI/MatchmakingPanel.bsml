@@ -1,0 +1,1 @@
+﻿<toggle-setting id='CustomMatchmakeToggle' value='CustomMatchmake' on-change='SetCustomMatchmake' text='Custom Songs' hover-hint='Matchmakes for a custom songs server.'></toggle-setting>

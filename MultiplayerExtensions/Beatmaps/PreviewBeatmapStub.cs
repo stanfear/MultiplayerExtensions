@@ -11,23 +11,23 @@ namespace MultiplayerExtensions.Beatmaps
 {
     class PreviewBeatmapStub : IPreviewBeatmapLevel
     {
-        public string levelHash { get; private set; }
+        public string? levelHash { get; private set; }
         public string downloadURL => $"https://beatsaver.com/api/download/hash/{levelHash.ToLower()}";
         public Beatmap? beatmap;
 
-        private Task<Sprite?>? _coverTask;
-        private Task<byte[]> _rawCoverTask;
-        private Task<AudioClip>? _audioTask;
+        protected Task<Sprite?>? _coverTask;
+        protected Task<byte[]> _rawCoverTask;
+        protected Task<AudioClip>? _audioTask;
 
         public bool isDownloaded;
 
-        private enum DownloadableState
+        protected enum DownloadableState
         {
             True, False, Unchecked
         }
 
-        private DownloadableState _downloadable = DownloadableState.Unchecked;
-        private Task<bool>? _downloadableTask;
+        protected DownloadableState _downloadable = DownloadableState.Unchecked;
+        protected Task<bool>? _downloadableTask;
         public Task<bool> isDownloadable
         {
             get
@@ -80,7 +80,7 @@ namespace MultiplayerExtensions.Beatmaps
         public PreviewBeatmapStub(PreviewBeatmapPacket packet)
         {
             this.levelID = packet.levelId;
-            this.levelHash = Utilities.Utils.LevelIdToHash(levelID)!;
+            this.levelHash = Utilities.Utils.LevelIdToHash(levelID);
             this.isDownloaded = false;
 
             this.songName = packet.songName;

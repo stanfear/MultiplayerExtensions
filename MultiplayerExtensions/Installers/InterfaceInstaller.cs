@@ -31,6 +31,10 @@ namespace MultiplayerExtensions.Installers
             CenterStageScreenController centerScreenController = Container.Resolve<CenterStageScreenController>();
             CenterScreenLoadingPanel loadingPanel = centerScreenController.gameObject.AddComponent<CenterScreenLoadingPanel>();
             Container.Inject(loadingPanel);
+
+            JoinQuickPlayViewController joinQuickPlayViewController = Container.Resolve<JoinQuickPlayViewController>();
+            MatchmakingPanel matchmakingPanel = joinQuickPlayViewController.gameObject.AddComponent<MatchmakingPanel>();
+            matchmakingPanel.Activate();
         }
     }
 }
