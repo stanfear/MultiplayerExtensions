@@ -39,13 +39,13 @@ namespace MultiplayerExtensions.Beatmaps
             writer.Put(characteristic);
             writer.PutVarUInt((uint)difficulty);
 
-            if (this.coverImage != null)
-                writer.PutBytesWithLength(coverImage);
-            else
-            {
+            //if (this.coverImage != null)
+                //writer.PutBytesWithLength(coverImage);
+            //else
+            //{
                 Plugin.Log?.Debug($"coverImage is null when serializing '{levelId}'");
                 writer.PutBytesWithLength(Array.Empty<byte>());
-            }
+            //}
         }
 
         public void Deserialize(NetDataReader reader)

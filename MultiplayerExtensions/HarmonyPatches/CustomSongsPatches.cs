@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using System.Linq;
+using Polyglot;
+using MultiplayerExtensions.Beatmaps;
 #if DEBUG
 using System.Collections.Generic;
 #endif
@@ -48,8 +50,8 @@ namespace MultiplayerExtensions.HarmonyPatches
     [HarmonyPatch(typeof(JoinQuickPlayViewController), "multiplayerModeSettings", MethodType.Getter)]
     public class EnableCustomMatchmakingPatch
     {
-        private static BeatmapLevelsModel beatmapLevelsModel;
-        public static SongPackMask customSongsMask { get; private set; }
+        private static BeatmapLevelsModel? beatmapLevelsModel;
+        public static SongPackMask customSongsMask;
 
         /// <summary>
         /// Overrides getter for <see cref="JoinQuickPlayViewController.multiplayerModeSettings"/>
@@ -57,15 +59,16 @@ namespace MultiplayerExtensions.HarmonyPatches
         static void Postfix(ref MultiplayerModeSettings __result)
         {
             bool isCustom = Plugin.Config.CustomMatchmake;
-            Plugin.Log?.Debug($"CustomMatchmake is {(isCustom ? "enabled" : "disabled")}.");
             if (isCustom)
             {
                 if (beatmapLevelsModel == null)
                     beatmapLevelsModel = Resources.FindObjectsOfTypeAll<BeatmapLevelsModel>().First();
-                 customSongsMask = new SongPackMask((from pack in beatmapLevelsModel.customLevelPackCollection.beatmapLevelPacks select pack.packID).ToBloomFilter());
+                if (customSongsMask == new SongPackMask())
+                    customSongsMask = new SongPackMask((from pack in beatmapLevelsModel.customLevelPackCollection.beatmapLevelPacks select pack.packID).ToBloomFilter());
 
                 __result.quickPlaySongPackMask = __result.quickPlaySongPackMask | customSongsMask;
-                __result.quickPlayBeatmapDifficulty = BeatmapDifficultyMask.All;
+                if (Plugin.Config.AllDifficulties)
+                    __result.quickPlayBeatmapDifficulty = BeatmapDifficultyMask.All;
             }
         }
     }
@@ -86,6 +89,23 @@ namespace MultiplayerExtensions.HarmonyPatches
         {
             ConnectionType = __instance.GetProperty<MultiplayerLobbyConnectionController.LobbyConnectionType, MultiplayerLobbyConnectionController>("connectionType");
             Plugin.Log?.Debug($"Joining a {ConnectionType} lobby.");
+        }
+    }
+
+    [HarmonyPatch(typeof(CenterStageScreenController), "SetHostDataManual", MethodType.Normal)]
+    internal class CenterStageSetDataPatch
+    {
+        internal static FieldAccessor<CenterStageScreenController, ILobbyPlayersDataModel>.Accessor _lobbyPlayersDataModel = FieldAccessor<CenterStageScreenController, ILobbyPlayersDataModel>.GetAccessor("_lobbyPlayersDataModel");
+
+        static void Prefix(CenterStageScreenController __instance, ref IPreviewBeatmapLevel previewBeatmapLevel)
+        {
+            if (!LobbyJoinPatch.IsPrivate && Plugin.Config.CustomMatchmake)
+            {
+                var levelId = previewBeatmapLevel.levelID;
+                ILobbyPlayerDataModel playerData = _lobbyPlayersDataModel(ref __instance).playersData.Values.ToList().Find(x => x.beatmapLevel is QuickplayBeatmapStub qpPreview && qpPreview.spoofedLevelID == levelId);
+                if (playerData != null)
+                    previewBeatmapLevel = playerData.beatmapLevel;
+            }
         }
     }
 }

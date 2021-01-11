@@ -25,19 +25,6 @@ namespace MultiplayerExtensions.OverrideClasses
             base.Activate();
         }
 
-        public override void HandleMenuRpcManagerStartedLevel(string userId, BeatmapIdentifierNetSerializable beatmapId, GameplayModifiers gameplayModifiers, float startTime)
-        {
-            BeatmapIdentifierNetSerializable bmId = beatmapId;
-            if (Plugin.Config.CustomMatchmake)
-            {
-                ILobbyPlayerDataModel playerData = _lobbyPlayersDataModel.playersData.Values.ToList().Find(x => x.beatmapLevel is QuickplayBeatmapStub qpPreview && qpPreview.spoofedLevelID == beatmapId.levelID);
-                if (playerData != null)
-                    bmId = new BeatmapIdentifierNetSerializable(playerData.beatmapLevel.levelID, beatmapId.beatmapCharacteristicSerializedName, beatmapId.difficulty);
-            }
-
-            base.HandleMenuRpcManagerStartedLevel(userId, beatmapId, gameplayModifiers, startTime);
-        }
-
         public new void Deactivate()
         {
             _sessionManager.playerStateChangedEvent -= OnPlayerStateChanged;
@@ -72,7 +59,7 @@ namespace MultiplayerExtensions.OverrideClasses
                     Plugin.Log.Debug($"Player {player.userId} is ready.");
                 }
 
-                if (_sessionManager.connectedPlayers.All((x) => x.HasState("start_primed") || (!x.HasState("modded") && x.HasState("is_active"))) && _sessionManager.LocalPlayerHasState("start_primed"))
+                if (_sessionManager.connectedPlayers.All((x) => x.HasState("start_primed") || (!x.HasState("modded") && x.HasState("is_active") || !x.HasState("player") || x.HasState("dedicated_server"))) && _sessionManager.LocalPlayerHasState("start_primed"))
                 {
                     Plugin.Log.Debug("All players ready, starting game.");
                     StartLevel();
@@ -103,7 +90,18 @@ namespace MultiplayerExtensions.OverrideClasses
             
             _sessionManager.SetLocalPlayerState("start_primed", false);
             starting = true;
-            base.HandleMenuRpcManagerStartedLevel(userId, beatmapId, gameplayModifiers, startTime);
+
+            BeatmapIdentifierNetSerializable bmId = beatmapId;
+            if (Plugin.Config.CustomMatchmake)
+            {
+                ILobbyPlayerDataModel playerData = _lobbyPlayersDataModel.playersData.Values.ToList().Find(x => x.beatmapLevel is QuickplayBeatmapStub qpPreview && qpPreview.spoofedLevelID == beatmapId.levelID);
+                if (playerData != null)
+                    bmId = new BeatmapIdentifierNetSerializable(playerData.beatmapLevel.levelID, beatmapId.beatmapCharacteristicSerializedName, beatmapId.difficulty);
+                Plugin.Log.Info($"Swapped starting level ID with '{playerData.beatmapLevel.levelID}'");
+            }
+            Plugin.Log.Info(bmId.levelID);
+
+            base.HandleMenuRpcManagerStartedLevel(userId, bmId, gameplayModifiers, startTime);
             _multiplayerLevelLoader.countdownFinishedEvent -= base.HandleMultiplayerLevelLoaderCountdownFinished;
             _multiplayerLevelLoader.countdownFinishedEvent += HandleCountdown;
         }
@@ -141,6 +139,13 @@ namespace MultiplayerExtensions.OverrideClasses
         public void StartLevel()
         {
             starting = false;
+
+            Plugin.Log.Info($"'{nameof(previewBeatmapLevel)}' is {(previewBeatmapLevel == null ? "null" : "not null")}");
+            Plugin.Log.Info($"'{nameof(beatmapDifficulty)}' is {(beatmapDifficulty == null ? "null" : "not null")}");
+            Plugin.Log.Info($"'{nameof(beatmapCharacteristic)}' is {(beatmapCharacteristic == null ? "null" : "not null")}");
+            Plugin.Log.Info($"'{nameof(difficultyBeatmap)}' is {(difficultyBeatmap == null ? "null" : "not null")}");
+            Plugin.Log.Info($"'{nameof(gameplayModifiers)}' is {(gameplayModifiers == null ? "null" : "not null")}");
+
             base.HandleMultiplayerLevelLoaderCountdownFinished(previewBeatmapLevel, beatmapDifficulty, beatmapCharacteristic, difficultyBeatmap, gameplayModifiers);
         }
 

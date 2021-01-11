@@ -30,21 +30,21 @@ namespace MultiplayerExtensions.HarmonyPatches
                 {
                     CodeInstruction current = new CodeInstruction(OpCodes.Stloc, localException);
                     current.blocks.Add(new ExceptionBlock(ExceptionBlockType.BeginCatchBlock));
-                    LogInstruction(current);
+                    //LogInstruction(current);
                     yield return current; // Store exception in local
                     current = new CodeInstruction(OpCodes.Ldloc_2); // load player
-                    LogInstruction(current);
+                    //LogInstruction(current);
                     yield return current; // load player onto stack
                     current = new CodeInstruction(OpCodes.Ldloc, localException);
-                    LogInstruction(current);
+                    //LogInstruction(current);
                     yield return current; // load exception onto stack
                     current = new CodeInstruction(OpCodes.Call, _exceptionLogger);
-                    LogInstruction(current);
+                    //LogInstruction(current);
                     yield return current; // Calls logger
                 }
                 else
                 {
-                    LogInstruction(code);
+                    //LogInstruction(code);
                     yield return code;
                 }
 

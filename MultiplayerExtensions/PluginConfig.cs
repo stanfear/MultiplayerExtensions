@@ -14,5 +14,6 @@ namespace MultiplayerExtensions
         public bool CustomSongs { get; set; } = true;
         public bool EnforceMods { get; set; } = true;
         public bool CustomMatchmake { get; set; } = true;
+        public bool AllDifficulties { get; set; } = true;
     }
 }

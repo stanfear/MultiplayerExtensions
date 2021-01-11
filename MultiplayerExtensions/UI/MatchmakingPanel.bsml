@@ -1,1 +1,4 @@
-﻿<toggle-setting id='CustomMatchmakeToggle' value='CustomMatchmake' on-change='SetCustomMatchmake' text='Custom Songs' hover-hint='Matchmakes for a custom songs server.'></toggle-setting>
+﻿<bg>
+  <toggle-setting id='CustomMatchmakeToggle' value='CustomMatchmake' on-change='SetCustomMatchmake' text='Custom Songs' hover-hint='Matchmakes for a custom songs server.'></toggle-setting>
+  <toggle-setting id='AllDifficultiesToggle' value='AllDifficulties' on-change='SetAllDifficulties' text='All Difficulties' hover-hint='Enables all difficulties.'></toggle-setting>
+</bg>

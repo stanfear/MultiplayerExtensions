@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Zenject;
 
 namespace MultiplayerExtensions.OverrideClasses
 {
@@ -12,25 +13,30 @@ namespace MultiplayerExtensions.OverrideClasses
         public override void LoadLevel(BeatmapIdentifierNetSerializable beatmapId, GameplayModifiers gameplayModifiers, float initialStartTime)
         {
             string? levelId = beatmapId.levelID;
+            Plugin.Log?.Info($"Loading level '{levelId}'");
             string? hash = Utilities.Utils.LevelIdToHash(beatmapId.levelID);
-            if (SongCore.Loader.GetLevelById(levelId) != null || hash == null)
+            if (SongCore.Loader.GetLevelById(levelId) == null && hash != null)
             {
-                Plugin.Log?.Debug($"(SongLoader) Level with ID '{levelId}' already exists.");
-                base.LoadLevel(beatmapId, gameplayModifiers, initialStartTime);
-                return;
-            }
-            if (Downloader.TryGetDownload(levelId, out _))
-            {
-                Plugin.Log?.Debug($"(SongLoader) Download for '{levelId}' is already in progress.");
-                return;
-            }
-
-            Plugin.Log?.Debug($"(SongLoader) Attempting to download level with ID '{levelId}'...");
-            DownloadSong(levelId).ContinueWith(r =>
-            {
-                if (r.Result == true)
+                if (Downloader.TryGetDownload(levelId, out _))
+                {
+                    Plugin.Log?.Debug($"(SongLoader) Download for '{levelId}' is already in progress.");
                     base.LoadLevel(beatmapId, gameplayModifiers, initialStartTime);
-            });
+                    return;
+                }
+
+                Task<BeatmapLevelsModel.GetBeatmapLevelResult> getBeatmapTask = Task.Run(async () =>
+                {
+                    await DownloadSong(levelId);
+                    this._previewBeatmapLevel = this._beatmapLevelsModel.GetLevelPreviewForLevelId(beatmapId.levelID);
+                    return await this._beatmapLevelsModel.GetBeatmapLevelAsync(beatmapId.levelID, this._getBeatmapCancellationTokenSource.Token);
+                });
+
+                base.LoadLevel(beatmapId, gameplayModifiers, initialStartTime);
+                this._getBeatmapLevelResultTask = getBeatmapTask;
+                return;
+            }
+            Plugin.Log?.Debug($"(SongLoader) Level with ID '{levelId}' already exists.");
+            base.LoadLevel(beatmapId, gameplayModifiers, initialStartTime);
         }
 
         async Task<bool> DownloadSong(string levelId)

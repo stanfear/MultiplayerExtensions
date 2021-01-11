@@ -64,7 +64,7 @@ namespace MultiplayerExtensions.OverrideClasses
         public void HandleQuickplayBeatmapPacket(QuickplayBeatmapPacket packet, IConnectedPlayer player)
         {
             string? hash = Utilities.Utils.LevelIdToHash(packet.levelId);
-            Plugin.Log?.Debug($"'{player.userId}' selected song '{hash ?? packet.levelId}'.");
+            Plugin.Log?.Debug($"'{player.userId}' selected song '{hash ?? packet.levelId}' spoofed with '{packet.spoofedLevelId}'.");
             BeatmapCharacteristicSO characteristic = _beatmapCharacteristicCollection.GetBeatmapCharacteristicBySerializedName(packet.characteristic);
             QuickplayBeatmapStub preview = new QuickplayBeatmapStub(packet);
             HMMainThreadDispatcher.instance.Enqueue(() => base.SetPlayerBeatmapLevel(player.userId, preview, packet.difficulty, characteristic));
@@ -72,20 +72,23 @@ namespace MultiplayerExtensions.OverrideClasses
 
         public async override void HandleMenuRpcManagerGetSelectedBeatmap(string userId)
         {
+            Plugin.Log.Debug($"'{userId}' wants to know what beatmap is selected");
             ILobbyPlayerDataModel lobbyPlayerDataModel = this.GetLobbyPlayerDataModel(this.localUserId);
             if (lobbyPlayerDataModel?.beatmapLevel != null) {
                 string characteristic = lobbyPlayerDataModel.beatmapCharacteristic.serializedName;
                 BeatmapDifficulty difficulty = lobbyPlayerDataModel.beatmapDifficulty;
                 if (lobbyPlayerDataModel.beatmapLevel is QuickplayBeatmapStub quickplayBeatmap)
                 {
-                    _packetManager.Send(await QuickplayBeatmapPacket.FromPreview(quickplayBeatmap, characteristic, difficulty));
+                    Plugin.Log.Debug($"Responding with spoofed id '{quickplayBeatmap.spoofedLevelID}'");
                     _menuRpcManager.SelectBeatmap(new BeatmapIdentifierNetSerializable(quickplayBeatmap.spoofedLevelID, characteristic, difficulty));
+                    //_packetManager.Send(await QuickplayBeatmapPacket.FromPreview(quickplayBeatmap, characteristic, difficulty));
                 }
                 else
                 {
-                    if (lobbyPlayerDataModel.beatmapLevel is PreviewBeatmapStub previewBeatmap)
-                        _packetManager.Send(await PreviewBeatmapPacket.FromPreview(previewBeatmap, characteristic, difficulty));
+                    Plugin.Log.Debug($"Responding with levelid '{lobbyPlayerDataModel.beatmapLevel.levelID}'");
                     _menuRpcManager.SelectBeatmap(new BeatmapIdentifierNetSerializable(lobbyPlayerDataModel.beatmapLevel.levelID, characteristic, difficulty));
+                    //if (lobbyPlayerDataModel.beatmapLevel is PreviewBeatmapStub previewBeatmap)
+                        //_packetManager.Send(await PreviewBeatmapPacket.FromPreview(previewBeatmap, characteristic, difficulty));
                 }
             }
         }
@@ -107,9 +110,12 @@ namespace MultiplayerExtensions.OverrideClasses
                     {
                         if (userId == hostUserId)
                         {
+                            Plugin.Log.Info($"Host server seleted beatmap '{beatmapId.levelID}'");
                             ILobbyPlayerDataModel playerData = playersData.Values.ToList().Find(x => x.beatmapLevel is QuickplayBeatmapStub qpPreview && qpPreview.spoofedLevelID == beatmapId.levelID);
                             if (playerData != null)
                                 HMMainThreadDispatcher.instance.Enqueue(() => base.SetPlayerBeatmapLevel(userId, playerData.beatmapLevel, beatmapId.difficulty, characteristic));
+                            else
+                                base.HandleMenuRpcManagerSelectedBeatmap(userId, beatmapId);
                         }
                     }
                 }
@@ -151,6 +157,7 @@ namespace MultiplayerExtensions.OverrideClasses
                         }
                         catch
                         {
+                            Plugin.Log.Error($"Beatsaver metadata fetch failed.");
                             return;
                         }
                     }

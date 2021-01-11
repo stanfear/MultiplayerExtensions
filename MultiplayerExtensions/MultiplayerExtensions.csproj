@@ -70,6 +70,10 @@
       <Private>False</Private>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
+    <Reference Include="Polyglot">
+      <HintPath>R:\Steam\steamapps\common\Beat Saber\Beat Saber_Data\Managed\Polyglot.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="SemVer">
       <HintPath>$(BeatSaberDir)\Libs\SemVer.dll</HintPath>
       <Private>False</Private>
