@@ -29,6 +29,34 @@ namespace MultiplayerExtensions.HarmonyPatches
             return codes.AsEnumerable();
         }
     }
+    
+    [HarmonyPatch(typeof(MultiplayerLayoutProvider), "CalculateLayout", MethodType.Normal)]
+    internal class PlayerLayoutSpotsCountPatch
+    {
+        internal static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            var codes = instructions.ToList();
+            bool flag = false;
+            for (int i = 0; i < codes.Count; i++)
+            {
+                if (codes[i].opcode == OpCodes.Ldc_I4_1)
+                {
+                    flag = true;
+                    continue;
+                }
+
+                if (codes[i].opcode == OpCodes.Add && flag)
+                {
+                    codes.RemoveAt(i);
+                    codes.RemoveAt(i - 1);
+                    break;
+                }
+
+                flag = false;
+            }
+            return codes.AsEnumerable();
+        }
+    }
 
     [HarmonyPatch(typeof(CreateServerFormController), "formData", MethodType.Getter)]
     internal class IncreaseMaxPlayersClampPatch
@@ -50,12 +78,11 @@ namespace MultiplayerExtensions.HarmonyPatches
     [HarmonyPatch(typeof(CreateServerFormController), "Setup", MethodType.Normal)]
     internal class IncreaseMaxPlayersPatch
     {
-        internal static void Prefix(CreateServerFormController __instance)
+        internal static void Prefix(CreateServerFormController __instance, ref FormattedFloatListSettingsController ____maxPlayersList)
         {
             int maxPlayers = MPState.CurrentMasterServer.isOfficial ? 5 : Plugin.Config.MaxPlayers;
             float[] playerValues = Enumerable.Range(2, maxPlayers-1).Select(x => (float)x).ToArray();
-            FormattedFloatListSettingsController serverForm = __instance.GetField<FormattedFloatListSettingsController, CreateServerFormController>("_maxPlayersList");
-            serverForm.values = playerValues;
+            ____maxPlayersList.values = playerValues;
         }
     }
 }

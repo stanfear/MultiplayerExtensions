@@ -38,8 +38,14 @@ namespace MultiplayerExtensions.HarmonyPatches
             AddDefaultPatch<UpdateReliableFrequencyPatch>();
             AddDefaultPatch<UpdateUnreliableFrequencyPatch>();
             AddDefaultPatch<PlayerPlacementAnglePatch>();
+            AddDefaultPatch<PlayerLayoutSpotsCountPatch>();
             AddDefaultPatch<IncreaseMaxPlayersClampPatch>();
             AddDefaultPatch<IncreaseMaxPlayersPatch>();
+            AddDefaultPatch<MissingLevelStartPatch>();
+            AddDefaultPatch<ConnectedPlayerInstallerPatch>();
+            AddDefaultPatch<CenterStageGameDataPatch>();
+            AddDefaultPatch<DisableSpeedModifiersPatch>();
+            AddDefaultPatch<AprilFoolsPatch>();
             //AddDefaultPatch<RemoveByteLimitPatch>(); (doesn't support generics)
         }
 

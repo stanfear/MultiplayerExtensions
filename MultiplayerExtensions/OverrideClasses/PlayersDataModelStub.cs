@@ -1,6 +1,7 @@
 ﻿using BeatSaverSharp;
 using MultiplayerExtensions.Beatmaps;
 using MultiplayerExtensions.Packets;
+using MultiplayerExtensions.Sessions;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,14 +11,18 @@ namespace MultiplayerExtensions.OverrideClasses
     class PlayersDataModelStub : LobbyPlayersDataModel, ILobbyPlayersDataModel, IDisposable
     {
         protected readonly PacketManager _packetManager;
+        protected readonly ExtendedPlayerManager _playerManager;
 
-        internal PlayersDataModelStub(PacketManager packetManager)
+        internal PlayersDataModelStub(PacketManager packetManager, ExtendedPlayerManager playerManager)
         {
             _packetManager = packetManager;
+            _playerManager = playerManager;
         }
 
         public new void Activate()
         {
+            MPEvents.CustomSongsChanged += HandleCustomSongsChanged;
+            MPEvents.FreeModChanged += HandleFreeModChanged;
             _packetManager.RegisterCallback<PreviewBeatmapPacket>(HandlePreviewBeatmapPacket);
             base.Activate();
 
@@ -27,10 +32,16 @@ namespace MultiplayerExtensions.OverrideClasses
             _menuRpcManager.getSelectedBeatmapEvent += HandleMenuRpcManagerGetSelectedBeatmap;
             _menuRpcManager.clearSelectedBeatmapEvent -= base.HandleMenuRpcManagerClearBeatmap;
             _menuRpcManager.clearSelectedBeatmapEvent += HandleMenuRpcManagerClearBeatmap;
+            _menuRpcManager.selectedGameplayModifiersEvent -= base.HandleMenuRpcManagerSelectedGameplayModifiers;
+            _menuRpcManager.selectedGameplayModifiersEvent += HandleMenuRpcManagerSelectedGameplayModifiers;
+            _menuRpcManager.clearSelectedGameplayModifiersEvent -= base.HandleMenuRpcManagerClearSelectedGameplayModifiers;
+            _menuRpcManager.clearSelectedGameplayModifiersEvent += HandleMenuRpcManagerClearSelectedGameplayModifiers;
         }
 
         public new void Deactivate()
         {
+            MPEvents.CustomSongsChanged -= HandleCustomSongsChanged;
+            MPEvents.FreeModChanged -= HandleFreeModChanged;
             _packetManager.UnregisterCallback<PreviewBeatmapPacket>();
 
             _menuRpcManager.selectedBeatmapEvent -= HandleMenuRpcManagerSelectedBeatmap;
@@ -39,6 +50,10 @@ namespace MultiplayerExtensions.OverrideClasses
             _menuRpcManager.getSelectedBeatmapEvent += base.HandleMenuRpcManagerGetSelectedBeatmap;
             _menuRpcManager.clearSelectedBeatmapEvent -= HandleMenuRpcManagerClearBeatmap;
             _menuRpcManager.clearSelectedBeatmapEvent += base.HandleMenuRpcManagerClearBeatmap;
+            _menuRpcManager.selectedGameplayModifiersEvent -= HandleMenuRpcManagerSelectedGameplayModifiers;
+            _menuRpcManager.selectedGameplayModifiersEvent += base.HandleMenuRpcManagerSelectedGameplayModifiers;
+            _menuRpcManager.clearSelectedGameplayModifiersEvent -= HandleMenuRpcManagerClearSelectedGameplayModifiers;
+            _menuRpcManager.clearSelectedGameplayModifiersEvent += base.HandleMenuRpcManagerClearSelectedGameplayModifiers;
 
             base.Deactivate();
         }
@@ -48,10 +63,29 @@ namespace MultiplayerExtensions.OverrideClasses
             Deactivate();
         }
 
+        private void HandleCustomSongsChanged(object sender, bool value)
+        {
+            if (!value && GetPlayerBeatmapLevel(localUserId) is PreviewBeatmapStub)
+            {
+                base.ClearLocalPlayerBeatmapLevel();
+            }
+        }
+
+        private void HandleFreeModChanged(object sender, bool value)
+        {
+            if (value && localUserId != hostUserId)
+            {
+                GameplayModifiers localModifiers = GetPlayerGameplayModifiers(localUserId);
+                GameplayModifiers hostModifiers = GetPlayerGameplayModifiers(hostUserId);
+                if (localModifiers.songSpeed != hostModifiers.songSpeed)
+                    base.SetLocalPlayerGameplayModifiers(localModifiers.CopyWith(songSpeed: hostModifiers.songSpeed));
+            }
+        }
+
         /// <summary>
         /// Handles a <see cref="MultiplayerExtensions.Beatmaps.PreviewBeatmapPacket"/> used to transmit data about a custom song.
         /// </summary>
-        public void HandlePreviewBeatmapPacket(PreviewBeatmapPacket packet, IConnectedPlayer player)
+        private void HandlePreviewBeatmapPacket(PreviewBeatmapPacket packet, IConnectedPlayer player)
         {
             string? hash = Utilities.Utils.LevelIdToHash(packet.levelId);
             if (hash != null)
@@ -80,7 +114,7 @@ namespace MultiplayerExtensions.OverrideClasses
         public async override void HandleMenuRpcManagerGetSelectedBeatmap(string userId)
         {
             ILobbyPlayerDataModel lobbyPlayerDataModel = this.GetLobbyPlayerDataModel(this.localUserId);
-            if (_multiplayerSessionManager.GetPlayerByUserId(userId).HasState("modded") && lobbyPlayerDataModel?.beatmapLevel is PreviewBeatmapStub preview)
+            if (lobbyPlayerDataModel != null && MPState.CurrentGameType != MultiplayerGameType.QuickPlay && _multiplayerSessionManager.GetPlayerByUserId(userId).HasState("modded") && lobbyPlayerDataModel?.beatmapLevel is PreviewBeatmapStub preview)
                 _packetManager.Send(await PreviewBeatmapPacket.FromPreview(preview, lobbyPlayerDataModel.beatmapCharacteristic.serializedName, lobbyPlayerDataModel.beatmapDifficulty));
             else if (lobbyPlayerDataModel != null && lobbyPlayerDataModel.beatmapLevel != null)
                 this._menuRpcManager.SelectBeatmap(new BeatmapIdentifierNetSerializable(lobbyPlayerDataModel.beatmapLevel.levelID, lobbyPlayerDataModel.beatmapCharacteristic.serializedName, lobbyPlayerDataModel.beatmapDifficulty));
@@ -109,7 +143,7 @@ namespace MultiplayerExtensions.OverrideClasses
                     if (localPreview != null)
                         preview = new PreviewBeatmapStub(hash, localPreview);
                     if (preview == null)
-                        preview = await FetchBeatSaverPreview(hash);
+                        preview = await FetchBeatSaverPreview(beatmapId.levelID, hash);
                     HMMainThreadDispatcher.instance.Enqueue(() => base.SetPlayerBeatmapLevel(userId, preview, beatmapId.difficulty, characteristic));
                 }
             }
@@ -123,7 +157,7 @@ namespace MultiplayerExtensions.OverrideClasses
         public async new void SetLocalPlayerBeatmapLevel(string levelId, BeatmapDifficulty beatmapDifficulty, BeatmapCharacteristicSO characteristic)
         {
             string? hash = Utilities.Utils.LevelIdToHash(levelId);
-            Plugin.Log?.Debug($"Local user selected song '{hash}'.");
+            Plugin.Log?.Debug($"Local user selected song '{hash ?? levelId}'.");
             if (hash != null)
             {
                 if (_playersData.Values.Any(playerData => playerData.beatmapLevel?.levelID == levelId))
@@ -139,7 +173,7 @@ namespace MultiplayerExtensions.OverrideClasses
                     if (localPreview != null)
                         preview = new PreviewBeatmapStub(hash, localPreview);
                     if (preview == null)
-                        preview = await FetchBeatSaverPreview(hash);
+                        preview = await FetchBeatSaverPreview(levelId, hash);
 
                     HMMainThreadDispatcher.instance.Enqueue(() => base.SetPlayerBeatmapLevel(base.localUserId, preview, beatmapDifficulty, characteristic));
                     _packetManager.Send(await PreviewBeatmapPacket.FromPreview(preview, characteristic.serializedName, beatmapDifficulty));
@@ -148,6 +182,34 @@ namespace MultiplayerExtensions.OverrideClasses
                 }
             }else
                 base.SetLocalPlayerBeatmapLevel(levelId, beatmapDifficulty, characteristic);
+        }
+
+        public override void HandleMenuRpcManagerSelectedGameplayModifiers(string userId, GameplayModifiers gameplayModifiers)
+        {
+            ExtendedPlayer? player = _playerManager.GetExtendedPlayer(userId);
+            if (player != null)
+                player.lastModifiers = gameplayModifiers;
+            base.HandleMenuRpcManagerSelectedGameplayModifiers(userId, gameplayModifiers);
+            if (userId == hostUserId && MPState.FreeModEnabled)
+            {
+                GameplayModifiers localModifiers = GetPlayerGameplayModifiers(localUserId);
+                if (localModifiers.songSpeed != gameplayModifiers.songSpeed)
+                    base.SetLocalPlayerGameplayModifiers(localModifiers.CopyWith(songSpeed: gameplayModifiers.songSpeed));
+            }
+        }
+
+        public override void HandleMenuRpcManagerClearSelectedGameplayModifiers(string userId)
+        {
+            ExtendedPlayer? player = _playerManager.GetExtendedPlayer(userId);
+            if (player != null)
+                player.lastModifiers = null;
+            base.HandleMenuRpcManagerClearSelectedGameplayModifiers(userId);
+            if (userId == hostUserId && MPState.FreeModEnabled)
+            {
+                GameplayModifiers localModifiers = GetPlayerGameplayModifiers(localUserId);
+                if (localModifiers.songSpeed != GameplayModifiers.SongSpeed.Normal)
+                    base.SetLocalPlayerGameplayModifiers(localModifiers.CopyWith(songSpeed: GameplayModifiers.SongSpeed.Normal));
+            }
         }
 
         /// <summary>
@@ -195,12 +257,12 @@ namespace MultiplayerExtensions.OverrideClasses
         /// <summary>
         /// Creates a preview from a BeatSaver request.
         /// </summary>
-        public async Task<PreviewBeatmapStub?> FetchBeatSaverPreview(string hash)
+        public async Task<PreviewBeatmapStub?> FetchBeatSaverPreview(string levelID, string hash)
         {
             try
             {
                 Beatmap bm = await Plugin.BeatSaver.Hash(hash);
-                return new PreviewBeatmapStub(bm);
+                return new PreviewBeatmapStub(levelID, bm);
             }
             catch(Exception ex)
             {

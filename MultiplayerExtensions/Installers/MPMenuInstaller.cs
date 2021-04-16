@@ -2,15 +2,15 @@
 using MultiplayerExtensions.Environments;
 using MultiplayerExtensions.OverrideClasses;
 using MultiplayerExtensions.UI;
+using UnityEngine;
 using Zenject;
 
 namespace MultiplayerExtensions.Installers
 {
-    class InterfaceInstaller : MonoInstaller
+    class MPMenuInstaller : MonoInstaller
     {
         public override void InstallBindings()
         {
-            Container.BindInterfacesAndSelfTo<LobbyPlaceManager>().AsSingle();
             Container.BindInterfacesAndSelfTo<LobbyEnvironmentManager>().AsSingle();
         }
 
@@ -19,23 +19,22 @@ namespace MultiplayerExtensions.Installers
             Plugin.Log?.Info("Installing Interface");
 
             HostLobbySetupViewController hostViewController = Container.Resolve<HostLobbySetupViewController>();
-            HostLobbySetupPanel hostSetupPanel = hostViewController.gameObject.AddComponent<HostLobbySetupPanel>();
-            Container.Inject(hostSetupPanel);
+            Container.InstantiateComponent<HostLobbySetupPanel>(hostViewController.gameObject);
 
             ClientLobbySetupViewController clientViewController = Container.Resolve<ClientLobbySetupViewController>();
-            ClientLobbySetupPanel clientSetupPanel = clientViewController.gameObject.AddComponent<ClientLobbySetupPanel>();
-            Container.Inject(clientSetupPanel);
+            Container.InstantiateComponent<ClientLobbySetupPanel>(clientViewController.gameObject);
 
             CenterStageScreenController centerScreenController = Container.Resolve<CenterStageScreenController>();
-            CenterScreenLoadingPanel loadingPanel = centerScreenController.gameObject.AddComponent<CenterScreenLoadingPanel>();
-            Container.Inject(loadingPanel);
+            Container.InstantiateComponent<CenterScreenLoadingPanel>(centerScreenController.gameObject);
 
             ServerPlayerListController playerListController = Container.Resolve<ServerPlayerListController>();
             GameServerPlayersTableView playersTableView = playerListController.GetField<GameServerPlayersTableView, ServerPlayerListController>("_gameServerPlayersTableView");
             GameServerPlayerTableCell playerTableCell = playersTableView.GetField<GameServerPlayerTableCell, GameServerPlayersTableView>("_gameServerPlayerCellPrefab");
-            PlayerTableCellStub playerTableCellStub = playerTableCell.gameObject.AddComponent<PlayerTableCellStub>();
-            playerTableCellStub.Construct(playerTableCell);
-            Destroy(playerTableCell.GetComponent<GameServerPlayerTableCell>());
+            GameServerPlayerTableCell newPlayerTableCell = GameObject.Instantiate(playerTableCell);
+            newPlayerTableCell.gameObject.SetActive(false);
+            PlayerTableCellStub playerTableCellStub = newPlayerTableCell.gameObject.AddComponent<PlayerTableCellStub>();
+            playerTableCellStub.Construct(newPlayerTableCell);
+            Destroy(newPlayerTableCell.GetComponent<GameServerPlayerTableCell>());
             playersTableView.SetField<GameServerPlayersTableView, GameServerPlayerTableCell>("_gameServerPlayerCellPrefab", playerTableCellStub);
         }
     }
